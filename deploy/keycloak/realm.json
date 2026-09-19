@@ -1,0 +1,590 @@
+{
+  "realm": "nfa",
+  "enabled": true,
+  "displayName": "NFA Planners Tender Workspace",
+  "sslRequired": "external",
+  "registrationAllowed": false,
+  "registrationEmailAsUsername": false,
+  "rememberMe": false,
+  "verifyEmail": false,
+  "loginWithEmailAllowed": true,
+  "duplicateEmailsAllowed": false,
+  "resetPasswordAllowed": false,
+  "editUsernameAllowed": false,
+  "bruteForceProtected": true,
+  "permanentLockout": false,
+  "maxFailureWaitSeconds": 900,
+  "minimumQuickLoginWaitSeconds": 60,
+  "waitIncrementSeconds": 60,
+  "quickLoginCheckMilliSeconds": 1000,
+  "maxDeltaTimeSeconds": 43200,
+  "failureFactor": 10,
+  "accessTokenLifespan": 900,
+  "accessTokenLifespanForImplicitFlow": 900,
+  "ssoSessionIdleTimeout": 28800,
+  "ssoSessionMaxLifespan": 28800,
+  "refreshTokenMaxReuse": 0,
+  "revokeRefreshToken": true,
+  "defaultSignatureAlgorithm": "RS256",
+  "roles": {
+    "realm": [
+      {
+        "name": "planner",
+        "description": "NFA town and regional planner"
+      },
+      {
+        "name": "analyst",
+        "description": "Planner with read access to the audit trail"
+      },
+      {
+        "name": "admin",
+        "description": "Delivery administrator: users, roles, webhooks, ingest"
+      },
+      {
+        "name": "information_officer",
+        "description": "POPIA Information Officer: privacy and audit"
+      },
+      {
+        "name": "service_ingest",
+        "description": "Service account for the ingest worker"
+      },
+      {
+        "name": "service_dispatch",
+        "description": "Service account for alert and webhook dispatch"
+      }
+    ]
+  },
+  "clientScopes": [
+    {
+      "name": "tenders:read",
+      "protocol": "openid-connect",
+      "attributes": {
+        "include.in.token.scope": "true",
+        "display.on.consent.screen": "false"
+      }
+    },
+    {
+      "name": "tenders:write",
+      "protocol": "openid-connect",
+      "attributes": {
+        "include.in.token.scope": "true",
+        "display.on.consent.screen": "false"
+      }
+    },
+    {
+      "name": "awards:read",
+      "protocol": "openid-connect",
+      "attributes": {
+        "include.in.token.scope": "true",
+        "display.on.consent.screen": "false"
+      }
+    },
+    {
+      "name": "contracts:read",
+      "protocol": "openid-connect",
+      "attributes": {
+        "include.in.token.scope": "true",
+        "display.on.consent.screen": "false"
+      }
+    },
+    {
+      "name": "buyers:read",
+      "protocol": "openid-connect",
+      "attributes": {
+        "include.in.token.scope": "true",
+        "display.on.consent.screen": "false"
+      }
+    },
+    {
+      "name": "parties:read",
+      "protocol": "openid-connect",
+      "attributes": {
+        "include.in.token.scope": "true",
+        "display.on.consent.screen": "false"
+      }
+    },
+    {
+      "name": "documents:read",
+      "protocol": "openid-connect",
+      "attributes": {
+        "include.in.token.scope": "true",
+        "display.on.consent.screen": "false"
+      }
+    },
+    {
+      "name": "search:read",
+      "protocol": "openid-connect",
+      "attributes": {
+        "include.in.token.scope": "true",
+        "display.on.consent.screen": "false"
+      }
+    },
+    {
+      "name": "searches:read",
+      "protocol": "openid-connect",
+      "attributes": {
+        "include.in.token.scope": "true",
+        "display.on.consent.screen": "false"
+      }
+    },
+    {
+      "name": "searches:write",
+      "protocol": "openid-connect",
+      "attributes": {
+        "include.in.token.scope": "true",
+        "display.on.consent.screen": "false"
+      }
+    },
+    {
+      "name": "alerts:read",
+      "protocol": "openid-connect",
+      "attributes": {
+        "include.in.token.scope": "true",
+        "display.on.consent.screen": "false"
+      }
+    },
+    {
+      "name": "alerts:write",
+      "protocol": "openid-connect",
+      "attributes": {
+        "include.in.token.scope": "true",
+        "display.on.consent.screen": "false"
+      }
+    },
+    {
+      "name": "workflows:read",
+      "protocol": "openid-connect",
+      "attributes": {
+        "include.in.token.scope": "true",
+        "display.on.consent.screen": "false"
+      }
+    },
+    {
+      "name": "workflows:write",
+      "protocol": "openid-connect",
+      "attributes": {
+        "include.in.token.scope": "true",
+        "display.on.consent.screen": "false"
+      }
+    },
+    {
+      "name": "reports:read",
+      "protocol": "openid-connect",
+      "attributes": {
+        "include.in.token.scope": "true",
+        "display.on.consent.screen": "false"
+      }
+    },
+    {
+      "name": "audit:read",
+      "protocol": "openid-connect",
+      "attributes": {
+        "include.in.token.scope": "true",
+        "display.on.consent.screen": "false"
+      }
+    },
+    {
+      "name": "privacy:read",
+      "protocol": "openid-connect",
+      "attributes": {
+        "include.in.token.scope": "true",
+        "display.on.consent.screen": "false"
+      }
+    },
+    {
+      "name": "ingest:read",
+      "protocol": "openid-connect",
+      "attributes": {
+        "include.in.token.scope": "true",
+        "display.on.consent.screen": "false"
+      }
+    },
+    {
+      "name": "admin:users",
+      "protocol": "openid-connect",
+      "attributes": {
+        "include.in.token.scope": "true",
+        "display.on.consent.screen": "false"
+      }
+    }
+  ],
+  "clients": [
+    {
+      "clientId": "nfa-console",
+      "name": "NFA Planners web console",
+      "enabled": true,
+      "publicClient": true,
+      "standardFlowEnabled": true,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "serviceAccountsEnabled": false,
+      "protocol": "openid-connect",
+      "attributes": {
+        "pkce.code.challenge.method": "S256",
+        "post.logout.redirect.uris": "http://localhost:3000/*##https://uat.console.nfaplanners.com/*##https://console.nfaplanners.com/*",
+        "access.token.signed.response.alg": "RS256"
+      },
+      "redirectUris": [
+        "http://localhost:3000/*",
+        "https://uat.console.nfaplanners.com/*",
+        "https://console.nfaplanners.com/*",
+        "https://*.vercel.app/*"
+      ],
+      "webOrigins": [
+        "http://localhost:3000",
+        "https://uat.console.nfaplanners.com",
+        "https://console.nfaplanners.com",
+        "https://*.vercel.app"
+      ],
+      "fullScopeAllowed": false,
+      "optionalClientScopes": [
+        "tenders:read",
+        "tenders:write",
+        "awards:read",
+        "contracts:read",
+        "buyers:read",
+        "parties:read",
+        "documents:read",
+        "search:read",
+        "searches:read",
+        "searches:write",
+        "alerts:read",
+        "alerts:write",
+        "workflows:read",
+        "workflows:write",
+        "reports:read",
+        "audit:read",
+        "privacy:read",
+        "ingest:read",
+        "admin:users"
+      ],
+      "defaultClientScopes": [
+        "openid",
+        "profile",
+        "email"
+      ]
+    },
+    {
+      "clientId": "nfa-mobile",
+      "name": "NFA Planners mobile",
+      "enabled": true,
+      "publicClient": true,
+      "standardFlowEnabled": true,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "serviceAccountsEnabled": false,
+      "protocol": "openid-connect",
+      "attributes": {
+        "pkce.code.challenge.method": "S256"
+      },
+      "redirectUris": [
+        "nfa://oauth/callback"
+      ],
+      "webOrigins": [],
+      "fullScopeAllowed": false,
+      "optionalClientScopes": [
+        "tenders:read",
+        "awards:read",
+        "contracts:read",
+        "buyers:read",
+        "parties:read",
+        "documents:read",
+        "search:read",
+        "searches:read",
+        "searches:write",
+        "alerts:read",
+        "alerts:write",
+        "workflows:read",
+        "workflows:write",
+        "reports:read"
+      ],
+      "defaultClientScopes": [
+        "openid",
+        "profile",
+        "email"
+      ]
+    },
+    {
+      "clientId": "nfa-service",
+      "name": "NFA internal service account",
+      "enabled": true,
+      "publicClient": false,
+      "secret": "local-service-secret-replace-in-prod",
+      "standardFlowEnabled": false,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "serviceAccountsEnabled": true,
+      "protocol": "openid-connect",
+      "attributes": {
+        "access.token.signed.response.alg": "RS256"
+      },
+      "redirectUris": [],
+      "webOrigins": [],
+      "fullScopeAllowed": false,
+      "defaultClientScopes": [],
+      "optionalClientScopes": [
+        "ingest:read"
+      ]
+    },
+    {
+      "clientId": "nfa-test",
+      "name": "NFA test client (local and UAT only; ROPC)",
+      "enabled": true,
+      "publicClient": true,
+      "standardFlowEnabled": false,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": true,
+      "serviceAccountsEnabled": false,
+      "protocol": "openid-connect",
+      "redirectUris": [],
+      "webOrigins": [],
+      "fullScopeAllowed": false,
+      "defaultClientScopes": [
+        "openid"
+      ],
+      "optionalClientScopes": [
+        "tenders:read",
+        "tenders:write",
+        "awards:read",
+        "contracts:read",
+        "buyers:read",
+        "parties:read",
+        "documents:read",
+        "search:read",
+        "searches:read",
+        "searches:write",
+        "alerts:read",
+        "alerts:write",
+        "workflows:read",
+        "workflows:write",
+        "reports:read",
+        "audit:read",
+        "privacy:read",
+        "ingest:read",
+        "admin:users"
+      ]
+    }
+  ],
+  "users": [
+    {
+      "username": "planner@local",
+      "email": "planner@local",
+      "firstName": "Planner",
+      "lastName": "Local",
+      "enabled": true,
+      "emailVerified": true,
+      "credentials": [
+        {
+          "type": "password",
+          "value": "planner",
+          "temporary": false
+        }
+      ],
+      "realmRoles": [
+        "planner"
+      ]
+    },
+    {
+      "username": "analyst@local",
+      "email": "analyst@local",
+      "firstName": "Analyst",
+      "lastName": "Local",
+      "enabled": true,
+      "emailVerified": true,
+      "credentials": [
+        {
+          "type": "password",
+          "value": "analyst",
+          "temporary": false
+        }
+      ],
+      "realmRoles": [
+        "analyst"
+      ]
+    },
+    {
+      "username": "admin@local",
+      "email": "admin@local",
+      "firstName": "Admin",
+      "lastName": "Local",
+      "enabled": true,
+      "emailVerified": true,
+      "credentials": [
+        {
+          "type": "password",
+          "value": "admin",
+          "temporary": false
+        }
+      ],
+      "realmRoles": [
+        "admin"
+      ]
+    },
+    {
+      "username": "officer@local",
+      "email": "officer@local",
+      "firstName": "Information",
+      "lastName": "Officer",
+      "enabled": true,
+      "emailVerified": true,
+      "credentials": [
+        {
+          "type": "password",
+          "value": "officer",
+          "temporary": false
+        }
+      ],
+      "realmRoles": [
+        "information_officer"
+      ]
+    }
+  ],
+  "scopeMappings": [
+    {
+      "clientScope": "admin:users",
+      "roles": [
+        "admin"
+      ]
+    },
+    {
+      "clientScope": "alerts:read",
+      "roles": [
+        "admin",
+        "analyst",
+        "planner"
+      ]
+    },
+    {
+      "clientScope": "alerts:write",
+      "roles": [
+        "admin",
+        "analyst",
+        "planner"
+      ]
+    },
+    {
+      "clientScope": "audit:read",
+      "roles": [
+        "admin",
+        "analyst",
+        "information_officer"
+      ]
+    },
+    {
+      "clientScope": "awards:read",
+      "roles": [
+        "admin",
+        "analyst",
+        "planner"
+      ]
+    },
+    {
+      "clientScope": "buyers:read",
+      "roles": [
+        "admin",
+        "analyst",
+        "planner"
+      ]
+    },
+    {
+      "clientScope": "contracts:read",
+      "roles": [
+        "admin",
+        "analyst",
+        "planner"
+      ]
+    },
+    {
+      "clientScope": "documents:read",
+      "roles": [
+        "admin",
+        "analyst",
+        "planner"
+      ]
+    },
+    {
+      "clientScope": "ingest:read",
+      "roles": [
+        "admin",
+        "service_ingest"
+      ]
+    },
+    {
+      "clientScope": "parties:read",
+      "roles": [
+        "admin",
+        "analyst",
+        "planner"
+      ]
+    },
+    {
+      "clientScope": "privacy:read",
+      "roles": [
+        "information_officer"
+      ]
+    },
+    {
+      "clientScope": "reports:read",
+      "roles": [
+        "admin",
+        "analyst",
+        "information_officer",
+        "planner"
+      ]
+    },
+    {
+      "clientScope": "search:read",
+      "roles": [
+        "admin",
+        "analyst",
+        "planner"
+      ]
+    },
+    {
+      "clientScope": "searches:read",
+      "roles": [
+        "admin",
+        "analyst",
+        "planner"
+      ]
+    },
+    {
+      "clientScope": "searches:write",
+      "roles": [
+        "admin",
+        "analyst",
+        "planner"
+      ]
+    },
+    {
+      "clientScope": "tenders:read",
+      "roles": [
+        "admin",
+        "analyst",
+        "planner"
+      ]
+    },
+    {
+      "clientScope": "tenders:write",
+      "roles": [
+        "admin"
+      ]
+    },
+    {
+      "clientScope": "workflows:read",
+      "roles": [
+        "admin",
+        "analyst",
+        "planner"
+      ]
+    },
+    {
+      "clientScope": "workflows:write",
+      "roles": [
+        "admin",
+        "analyst",
+        "planner"
+      ]
+    }
+  ]
+}
