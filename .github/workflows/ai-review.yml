@@ -19,7 +19,7 @@ jobs:
         env:
           GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
         run: |
-          if [ -z "${ANTHROPIC_API_KEY:-}" ]; then
+          if [ -z "${GOOGLE_API_KEY:-}" ]; then
             echo "::error::GOOGLE_API_KEY is not set. AI reviewers cannot run."
             echo "key_present=false" >> "$GITHUB_OUTPUT"
             exit 1
