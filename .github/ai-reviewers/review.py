@@ -8,8 +8,11 @@ import time
 import urllib.error
 import urllib.request
 
-MODEL = os.environ.get("AI_REVIEW_MODEL", "claude-sonnet-4-5")
-API = "https://api.anthropic.com/v1/messages"
+GEMINI_MODEL = os.environ.get("AI_REVIEW_MODEL", "gemini-3.7-flash")
+GEMINI_URL = (
+    "https://generativelanguage.googleapis.com/v1beta/"
+    f"models/{GEMINI_MODEL}:generateContent"
+)
 MAX_RETRIES = 5
 
 
@@ -40,13 +43,13 @@ def call(body):
     if not key:
         raise SystemExit("SKIP: GOOGLE_API_KEY is not set")
 
-    model = os.environ.get("AI_REVIEW_MODEL", "gemini-2.0-flash")
+    model = os.environ.get("AI_REVIEW_MODEL", "gemini-3.6-flash")
     url = (
         "https://generativelanguage.googleapis.com/v1beta/models/"
         + model + ":generateContent?key=" + key
     )
 
-    # Translate the Anthropic body shape to Gemini's shape.
+    # Translate the review payload into Gemini's contents shape.
     prompt_text = body["messages"][0]["content"]
     payload = {
         "contents": [{"parts": [{"text": prompt_text}]}],

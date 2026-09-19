@@ -22,7 +22,8 @@ jobs:
             exit 1
           fi
           status=$(curl -sS -o /tmp/resp.json -w "%{http_code}" \
-            "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GOOGLE_API_KEY}" \
+            "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.7-flash:generateContent" \
+            -H "x-goog-api-key: ${GOOGLE_API_KEY}" \
             -H "content-type: application/json" \
             -d '{"contents":[{"parts":[{"text":"ping"}]}]}')
           echo "status: ${status}"

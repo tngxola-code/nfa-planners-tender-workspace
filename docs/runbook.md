@@ -26,6 +26,6 @@ with a 401.
 
 1. Create a new API key in Google AI Studio.
 2. Revoke the old key.
-3. Update `ANTHROPIC_API_KEY` in repo settings.
+3. Update `GOOGLE_API_KEY` in repo settings.
 4. Run the health workflow manually to confirm.
 5. Note the rotation date in the team's password manager.
