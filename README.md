@@ -60,7 +60,8 @@ Both clients talk only to the API over HTTPS. The API is the only component hold
 <img width="1048" height="586" alt="image" src="https://github.com/user-attachments/assets/a47d3a81-56d6-4f33-92e1-e6f242385985" />
 
 ### Request path
-![Uploading image.png…]()
+<img width="686" height="932" alt="image" src="https://github.com/user-attachments/assets/550c49e7-4608-41cd-bd74-9416f6894415" />
+
 
 The diagrams are the source of truth for the chain and the topology. They are generated from `docs/img/*.py`: edit the script, re-run it, commit both.
 
