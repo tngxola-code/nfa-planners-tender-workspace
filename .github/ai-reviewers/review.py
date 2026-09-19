@@ -76,7 +76,8 @@ def call(body):
                     "Google API rejected the key (" + str(e.code) + "). "
                     "Regenerate GOOGLE_API_KEY. Response: " + body_text
                 )
-            if e.code == 429 and attempt < MAX_RETRIES - 1:
+            # Transient: rate limit or upstream capacity. Retry with backoff.
+            if e.code in (429, 500, 502, 503, 504) and attempt < MAX_RETRIES - 1:
                 time.sleep((2 ** attempt) * 5)
                 continue
             raise RuntimeError(
