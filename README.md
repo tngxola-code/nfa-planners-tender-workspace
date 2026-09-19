@@ -57,10 +57,10 @@ Tear down with `make down`, or `make clean` to drop volumes too.
 Both clients talk only to the API over HTTPS. The API is the only component holding database credentials. Caddy is the only container with a published port.
 
 ### Trust zones
-![nfa-trust-zones.svg](../../Downloads/nfa-trust-zones.svg)
+<img width="1048" height="586" alt="image" src="https://github.com/user-attachments/assets/a47d3a81-56d6-4f33-92e1-e6f242385985" />
 
 ### Request path
-![request-path.svg](../../Downloads/request-path.svg)
+![Uploading image.png…]()
 
 The diagrams are the source of truth for the chain and the topology. They are generated from `docs/img/*.py`: edit the script, re-run it, commit both.
 
