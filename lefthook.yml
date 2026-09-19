@@ -1,0 +1,204 @@
+# Lefthook: local quality gates.
+# Pre-commit: fast, staged files only, under 15s.
+# Pre-push:   full project, mirrors CI, under 2 minutes.
+
+min_version: 1.5.0
+
+pre-commit:
+  parallel: true
+  follow: false
+  commands:
+
+    trailing-whitespace:
+      glob: "*.{go,ts,tsx,js,jsx,json,md,yml,yaml,sql,dart,html,css}"
+      exclude: "docs/img/**/*.svg"
+      run: |
+        files=$(grep -Il '[[:space:]]$' {staged_files} || true)
+        [ -z "$files" ] || { echo "trailing whitespace:"; echo "$files"; exit 1; }
+
+    end-of-file:
+      glob: "*.{go,ts,tsx,js,jsx,json,md,yml,yaml,sql,dart,html,css}"
+      exclude: "docs/img/**/*.svg"
+      run: |
+        bad=""
+        for f in {staged_files}; do
+          [ -s "$f" ] || continue
+          [ "$(tail -c1 "$f" | wc -l)" -eq 1 ] || bad="$bad $f"
+        done
+        [ -z "$bad" ] || { echo "missing newline:"; echo "$bad"; exit 1; }
+
+    mixed-line-endings:
+      glob: "*.{go,ts,tsx,js,jsx,json,md,yml,yaml,sql,dart}"
+      run: |
+        bad=""
+        for f in {staged_files}; do
+          crlf=$(grep -c $'\r' "$f" || true)
+          lf=$(grep -c $'\n' "$f" || true)
+          if [ "$crlf" -gt 0 ] && [ "$lf" -gt 0 ]; then bad="$bad $f"; fi
+        done
+        [ -z "$bad" ] || { echo "mixed line endings:"; echo "$bad"; exit 1; }
+
+    large-files:
+      run: |
+        bad=$(git diff --cached --name-only --diff-filter=A | while read -r f; do
+          [ -f "$f" ] || continue
+          size=$(stat -c%s "$f" 2>/dev/null || stat -f%z "$f")
+          [ "$size" -gt 1048576 ] && echo "$f ($size bytes)"
+        done)
+        [ -z "$bad" ] || { echo "files over 1 MB:"; echo "$bad"; exit 1; }
+
+    gitleaks:
+      glob: "*"
+      exclude: "docs/img/**/*.svg"
+      run: gitleaks protect --staged --no-banner --redact
+
+    gofmt:
+      glob: "backend/**/*.go"
+      run: |
+        out=$(gofmt -l -s {staged_files} || true)
+        if [ -n "$out" ]; then
+          gofmt -w -s {staged_files}
+          git add {staged_files}
+          echo "gofmt applied; re-stage and commit"
+          exit 1
+        fi
+
+    goimports:
+      glob: "backend/**/*.go"
+      run: |
+        command -v goimports >/dev/null || { echo "install goimports"; exit 1; }
+        goimports -w {staged_files}
+        git add {staged_files}
+
+    golangci-lint:
+      glob: "backend/**/*.go"
+      run: |
+        command -v golangci-lint >/dev/null || { echo "install golangci-lint"; exit 1; }
+        (cd backend && golangci-lint run --new-from-rev=HEAD --timeout 90s ./...)
+
+    eslint:
+      root: "console/"
+      glob: "console/**/*.{ts,tsx,js,jsx}"
+      run: |
+        cd console
+        pnpm exec eslint --fix --max-warnings=0 {staged_files}
+        git add {staged_files}
+
+    prettier:
+      root: "console/"
+      glob: "console/**/*.{ts,tsx,js,jsx,json,css,md}"
+      run: |
+        cd console
+        pnpm exec prettier --write {staged_files}
+        git add {staged_files}
+
+    dart-format:
+      glob: "mobile/**/*.dart"
+      run: |
+        dart format {staged_files}
+        git add {staged_files}
+
+    sqlfluff:
+      glob: "backend/{migrations,internal/db/queries}/**/*.sql"
+      run: |
+        command -v sqlfluff >/dev/null || { echo "install sqlfluff"; exit 1; }
+        sqlfluff lint --dialect postgres {staged_files}
+
+    spectral:
+      glob: "api/openapi.yaml"
+      run: |
+        command -v spectral >/dev/null || { echo "install spectral"; exit 1; }
+        spectral lint api/openapi.yaml --fail-severity=warn
+
+    yamllint:
+      glob: "*.{yml,yaml}"
+      exclude: "docs/img/**/*"
+      run: |
+        command -v yamllint >/dev/null || { echo "install yamllint"; exit 1; }
+        yamllint -c .yamllint {staged_files}
+
+    markdownlint:
+      glob: "*.md"
+      run: |
+        command -v markdownlint-cli2 >/dev/null || { echo "install markdownlint-cli2"; exit 1; }
+        markdownlint-cli2 --config .markdownlint.json {staged_files}
+
+    compose-config:
+      glob: "{docker-compose.yml,deploy/compose/*.yml}"
+      run: docker compose -f docker-compose.yml config -q
+
+commit-msg:
+  commands:
+    conventional-commits:
+      run: |
+        msg=$(head -1 {1})
+        if ! echo "$msg" | grep -Eq \
+          '^(feat|fix|chore|docs|refactor|test|perf|build|ci|revert)(\([a-z0-9-]+\))?!?: .+'; then
+          echo "commit message must follow Conventional Commits"
+          echo "example: feat(tenders): add list endpoint"
+          exit 1
+        fi
+        [ ${#msg} -le 72 ] || { echo "subject exceeds 72 chars"; exit 1; }
+
+pre-push:
+  parallel: false
+  commands:
+
+    go-mod-verify:
+      run: (cd backend && go mod verify)
+
+    go-vet:
+      run: (cd backend && go vet ./...)
+
+    go-build:
+      run: (cd backend && go build ./...)
+
+    golangci-lint-full:
+      run: (cd backend && golangci-lint run --timeout 4m ./...)
+
+    go-test-unit:
+      run: (cd backend && go test -race -short ./...)
+
+    sqlc-diff:
+      run: |
+        cd backend
+        sqlc generate
+        git diff --quiet internal/db/sqlc || {
+          echo "sqlc output stale; run 'make generate' and commit"; exit 1; }
+
+    oapi-codegen-diff:
+      run: |
+        cd backend
+        go generate ./internal/api/...
+        git diff --quiet internal/api || {
+          echo "oapi-codegen output stale; run 'make generate' and commit"; exit 1; }
+
+    console-typecheck:
+      run: (cd console && pnpm exec tsc --noEmit)
+
+    console-test-unit:
+      run: (cd console && pnpm test:unit -- run)
+
+    mobile-analyze:
+      run: (cd mobile && flutter analyze)
+
+    mobile-test-unit:
+      run: (cd mobile && flutter test test/unit)
+
+    spectral-full:
+      run: spectral lint api/openapi.yaml --fail-severity=warn
+
+    diagrams-are-committed:
+      glob: "docs/img/*.py"
+      run: |
+        make diagrams
+        git diff --quiet docs/img || {
+          echo "diagram output differs; commit the regenerated SVG"; exit 1; }
+
+    contract-smoke:
+      run: |
+        if curl -sf http://localhost:8000/healthz >/dev/null; then
+          make contract
+        else
+          echo "skipping contract smoke; API is not running on :8000"
+        fi

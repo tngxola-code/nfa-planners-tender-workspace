@@ -1,0 +1,118 @@
+name: AI review
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+
+permissions:
+  contents: read
+  pull-requests: write
+  checks: write
+
+jobs:
+  detect:
+    runs-on: ubuntu-latest
+    if: github.event.pull_request.draft == false
+    outputs:
+      reviewers: ${{ steps.d.outputs.reviewers }}
+      escalations: ${{ steps.d.outputs.escalations }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - id: d
+        run: |
+          git diff --name-only origin/${{ github.base_ref }}...HEAD > /tmp/changed.txt
+          python3 .github/ai-reviewers/detect.py < /tmp/changed.txt
+
+  review:
+    needs: detect
+    runs-on: ubuntu-latest
+    if: github.event.pull_request.draft == false
+    strategy:
+      fail-fast: false
+      matrix:
+        persona: [go, flutter, security, architect]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Build context
+        if: contains(needs.detect.outputs.reviewers, matrix.persona)
+        run: |
+          git diff origin/${{ github.base_ref }}...HEAD > /tmp/diff.txt
+          find docs/adr -name '*.md' -exec cat {} \; > /tmp/adrs.txt 2>/dev/null || true
+          cp api/openapi.yaml /tmp/contract.txt 2>/dev/null || true
+          head -200 docs/open-questions.md > /tmp/questions.txt 2>/dev/null || true
+
+      - name: Run persona
+        if: contains(needs.detect.outputs.reviewers, matrix.persona)
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: |
+          python3 .github/ai-reviewers/review.py \
+            --persona ${{ matrix.persona }} \
+            --diff /tmp/diff.txt \
+            --adrs /tmp/adrs.txt \
+            --contract /tmp/contract.txt \
+            --questions /tmp/questions.txt \
+            --output /tmp/result.json
+
+      - name: Skip if not required
+        if: contains(needs.detect.outputs.reviewers, matrix.persona) == false
+        run: |
+          echo '{"verdict":"pass","comment":"Not required for this diff.","summary":"skipped"}' > /tmp/result.json
+
+      - name: Post comment
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const r = JSON.parse(fs.readFileSync('/tmp/result.json','utf8'));
+            await github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: '### ai-review / ${{ matrix.persona }}\n\n' + r.comment,
+            });
+
+      - name: Set check
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const r = JSON.parse(fs.readFileSync('/tmp/result.json','utf8'));
+            await github.rest.checks.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              name: 'ai-review / ${{ matrix.persona }}',
+              head_sha: context.payload.pull_request.head.sha,
+              status: 'completed',
+              conclusion: r.verdict === 'fail' ? 'failure' : 'success',
+              output: { title: r.summary, summary: r.comment.slice(0, 65000) },
+            });
+
+      - name: Fail on FAIL
+        if: always()
+        run: |
+          v=$(jq -r .verdict /tmp/result.json)
+          [ "$v" = "fail" ] && exit 1 || exit 0
+
+  escalate:
+    needs: detect
+    if: needs.detect.outputs.escalations != ''
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/github-script@v7
+        with:
+          script: |
+            const labels = '${{ needs.detect.outputs.escalations }}'.split(',').filter(Boolean);
+            for (const label of labels) {
+              await github.rest.issues.addLabels({
+                issue_number: context.issue.number,
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                labels: [label],
+              });
+            }

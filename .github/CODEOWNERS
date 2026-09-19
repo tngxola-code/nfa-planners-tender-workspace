@@ -1,0 +1,5 @@
+*                         @tngxola-code
+/backend/internal/auth/   @tngxola-code @information-officer
+/deploy/secrets/          @tngxola-code @information-officer
+/.sops.yaml               @tngxola-code @information-officer
+/api/                     @tngxola-code @architect-signoff

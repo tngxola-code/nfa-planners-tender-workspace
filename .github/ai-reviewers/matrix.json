@@ -1,0 +1,42 @@
+{
+  "rules": [
+    {
+      "match": ["backend/**/*.go", "backend/go.mod", "backend/go.sum"],
+      "reviewers": ["go"]
+    },
+    {
+      "match": ["backend/internal/auth/**", "deploy/secrets/**", ".sops.yaml"],
+      "reviewers": ["go", "security"],
+      "escalate": "needs-information-officer"
+    },
+    {
+      "match": ["api/**"],
+      "reviewers": ["architect"],
+      "escalate": "needs-architect-signoff"
+    },
+    {
+      "match": ["console/**"],
+      "reviewers": ["flutter"]
+    },
+    {
+      "match": ["mobile/**"],
+      "reviewers": ["flutter", "security"]
+    },
+    {
+      "match": ["deploy/**", ".github/workflows/**"],
+      "reviewers": ["security", "architect"]
+    },
+    {
+      "match": ["docs/adr/**", "docs/*.md", "docs/img/**"],
+      "reviewers": ["architect"]
+    },
+    {
+      "match": ["*.md", "README.md"],
+      "reviewers": ["architect"]
+    }
+  ],
+  "defaults": {
+    "min_reviewers": 2,
+    "fallback": ["architect", "go"]
+  }
+}

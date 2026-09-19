@@ -1,0 +1,30 @@
+# Secrets
+.env
+.env.local
+.env.*.local
+deploy/secrets/*.dec.yaml
+deploy/caddy/certs/
+
+# Backend
+backend/bin/
+backend/coverage.out
+
+# Console
+console/.next/
+console/out/
+console/node_modules/
+console/test-results/
+console/playwright-report/
+
+# Mobile
+mobile/.dart_tool/
+mobile/build/
+mobile/ios/Pods/
+mobile/android/.gradle/
+
+# Editor
+.idea/
+.vscode/
+
+# OS
+.DS_Store
