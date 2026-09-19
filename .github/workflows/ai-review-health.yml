@@ -15,21 +15,19 @@ jobs:
     steps:
       - name: Exercise the reviewer secret
         env:
-          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
         run: |
-          if [ -z "${ANTHROPIC_API_KEY:-}" ]; then
-            echo "::error::ANTHROPIC_API_KEY is not set"
+          if [ -z "${GOOGLE_API_KEY:-}" ]; then
+            echo "::error::GOOGLE_API_KEY is not set"
             exit 1
           fi
           status=$(curl -sS -o /tmp/resp.json -w "%{http_code}" \
-            https://api.anthropic.com/v1/messages \
-            -H "x-api-key: ${ANTHROPIC_API_KEY}" \
-            -H "anthropic-version: 2023-06-01" \
+            "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GOOGLE_API_KEY}" \
             -H "content-type: application/json" \
-            -d '{"model":"claude-sonnet-4-5","max_tokens":10,"messages":[{"role":"user","content":"ping"}]}')
+            -d '{"contents":[{"parts":[{"text":"ping"}]}]}')
           echo "status: ${status}"
           if [ "${status}" != "200" ]; then
-            echo "::error::Anthropic API returned ${status}"
+            echo "::error::Google API returned ${status}"
             cat /tmp/resp.json || true
             exit 1
           fi
@@ -40,7 +38,7 @@ jobs:
         uses: actions/github-script@v7
         with:
           script: |
-            const title = "AI reviewer: ANTHROPIC_API_KEY is unhealthy";
+            const title = "AI reviewer: GOOGLE_API_KEY is unhealthy";
             const { data: existing } = await github.rest.issues.listForRepo({
               owner: context.repo.owner, repo: context.repo.repo,
               state: "open", labels: "ai-reviewer",
@@ -59,8 +57,8 @@ jobs:
                 "The AI reviewer workflows will fail on every PR until this is fixed.",
                 "",
                 "## What to do",
-                "1. Verify the key in the Anthropic console.",
-                "2. Update the repository secret `ANTHROPIC_API_KEY`.",
+                "1. Verify the key in the Google AI Studio console.",
+                "2. Update the repository secret `GOOGLE_API_KEY`.",
                 "3. Re-run the health workflow to confirm.",
                 "",
                 "See `docs/runbook.md` for the rotation procedure.",

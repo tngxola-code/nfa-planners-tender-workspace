@@ -1,0 +1,37 @@
+# Local development Caddyfile.
+#
+# Caddy terminates TLS with its internal CA and routes:
+#   /realms/*            -> Keycloak
+#   /v1/* /healthz /docs -> Go API
+#   everything else       -> a 404 until the console is wired in
+#
+# Local only. The production Caddyfile lives in deploy/caddy/Caddyfile.prod.
+
+{
+    local_certs
+    auto_https disable_redirects
+    admin off
+}
+
+localhost:8443 {
+    tls internal
+
+    @sso path /realms/* /resources/* /realms
+    handle @sso {
+        reverse_proxy keycloak:8080
+    }
+
+    @api path /v1/* /healthz /openapi.json /docs
+    handle @api {
+        reverse_proxy host.docker.internal:8000
+    }
+
+    handle {
+        respond "Not found" 404
+    }
+
+    log {
+        output stdout
+        format console
+    }
+}

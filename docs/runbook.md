@@ -8,9 +8,9 @@ Update this file as part of the fix so the next person has the answer.
 
 ---
 
-## ANTHROPIC_API_KEY
+## GOOGLE_API_KEY
 
-The AI reviewer jobs call the Anthropic API. Without this secret they fail
+The AI reviewer jobs call the Google Gemini API. Without this secret they fail
 with a 401.
 
 | | |
@@ -19,12 +19,12 @@ with a 401.
 | Scope | Repository. Not environment. |
 | Rotation | Quarterly, or immediately on suspected leak |
 | Health check | `.github/workflows/ai-review-health.yml`, daily at 06:00 UTC |
-| Failure symptom | `review (go)` and `review (architect)` fail with HTTP 401 |
+| Failure symptom | `review (go)` and `review (architect)` fail with HTTP 401/403 |
 | Fix | Rotate the key, update the secret, re-run the health workflow |
 
 ### How to rotate
 
-1. Create a new API key in the Anthropic console.
+1. Create a new API key in Google AI Studio.
 2. Revoke the old key.
 3. Update `ANTHROPIC_API_KEY` in repo settings.
 4. Run the health workflow manually to confirm.
