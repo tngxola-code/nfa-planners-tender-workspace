@@ -43,13 +43,15 @@ def call(body):
     if not key:
         raise SystemExit("SKIP: GOOGLE_API_KEY is not set")
 
-    model = os.environ.get("AI_REVIEW_MODEL", "gemini-3.6-flash")
+    # Model and URL come from the module-level constants so there is
+    # one source of truth. AI_REVIEW_MODEL overrides GEMINI_MODEL.
+    model = os.environ.get("AI_REVIEW_MODEL", GEMINI_MODEL)
     url = (
         "https://generativelanguage.googleapis.com/v1beta/models/"
-        + model + ":generateContent?key=" + key
+        + model
+        + ":generateContent"
     )
 
-    # Translate the review payload into Gemini's contents shape.
     prompt_text = body["messages"][0]["content"]
     payload = {
         "contents": [{"parts": [{"text": prompt_text}]}],
@@ -62,7 +64,10 @@ def call(body):
     req = urllib.request.Request(
         url,
         data=json.dumps(payload).encode(),
-        headers={"content-type": "application/json"},
+        headers={
+            "content-type": "application/json",
+            "x-goog-api-key": key,
+        },
     )
     for attempt in range(MAX_RETRIES):
         try:
