@@ -128,24 +128,40 @@ def main():
     p.add_argument("--output", required=True)
     a = p.parse_args()
 
-    persona = read(".github/ai-reviewers/" + a.persona + ".md")
-    text = call({
-        "model": GEMINI_MODEL,
-        "max_tokens": 4096,
-        "messages": [{
-            "role": "user",
-            "content": build_prompt(
-                persona,
-                read(a.diff),
-                read(a.adrs),
-                read(a.contract),
-                read(a.questions),
-            ),
-        }],
-    })
-    verdict, escalations, comment = parse(text)
+    persona = read(".github/ai-reviewers/" + a.persona)
+
+    unavailable = None
+    try:
+        text = call({
+            "messages": [{
+                "role": "user",
+                "content": build_prompt(
+                    persona,
+                    read(a.diff),
+                    read(a.adrs),
+                    read(a.contract),
+                    read(a.questions),
+                ),
+            }],
+        })
+        verdict, escalations, comment = parse(text)
+    except RuntimeError as e:
+        # Upstream provider unavailable. Report and pass, do not block.
+        unavailable = str(e)
+        verdict = "pass"
+        escalations = []
+        comment = (
+            "## Verdict: PASS\n\n"
+            "### Reviewer unavailable (upstream error)\n\n"
+            "This review was skipped because the upstream model provider "
+            "returned an error. This is not a code verdict.\n\n"
+            "```\n" + unavailable[:2000] + "\n```\n"
+        )
+
     summary = "Verdict: " + verdict
-    if escalations:
+    if unavailable:
+        summary += " · reviewer unavailable"
+    elif escalations:
         summary += " · escalations: " + ", ".join(escalations)
 
     json.dump(

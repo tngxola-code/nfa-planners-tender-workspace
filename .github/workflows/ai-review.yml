@@ -66,6 +66,8 @@ jobs:
         if: contains(needs.detect.outputs.reviewers, matrix.persona)
         env:
           GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
+          AI_REVIEW_MODEL: gemini-3.7-flash
+          AI_REVIEW_MODEL_FALLBACKS: "gemini-3.6-flash,gemini-3.5-flash-lite"
         run: |
           python3 .github/ai-reviewers/review.py \
             --persona ${{ matrix.persona }} \
@@ -108,7 +110,6 @@ jobs:
               conclusion: r.verdict === 'fail' ? 'failure' : 'success',
               output: { title: r.summary, summary: r.comment.slice(0, 65000) },
             });
-
 
   escalate:
     needs: [detect, preflight]
