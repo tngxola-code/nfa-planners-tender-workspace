@@ -43,14 +43,13 @@ def call(body):
     if not key:
         raise SystemExit("SKIP: GOOGLE_API_KEY is not set")
 
-    # Model and URL come from the module-level constants so there is
-    # one source of truth. AI_REVIEW_MODEL overrides GEMINI_MODEL.
-    model = os.environ.get("AI_REVIEW_MODEL", GEMINI_MODEL)
-    url = (
-        "https://generativelanguage.googleapis.com/v1beta/models/"
-        + model
-        + ":generateContent"
-    )
+    # Model fallback chain: primary from AI_REVIEW_MODEL (default GEMINI_MODEL),
+    # fallbacks from AI_REVIEW_MODEL_FALLBACKS (comma-separated). A 404 on a
+    # model is treated as "not available to this key" and skips to the next.
+    primary = os.environ.get("AI_REVIEW_MODEL", GEMINI_MODEL).strip()
+    raw_fallbacks = os.environ.get("AI_REVIEW_MODEL_FALLBACKS", "").strip()
+    fallbacks = [m.strip() for m in raw_fallbacks.split(",") if m.strip()]
+    models = [primary] + [m for m in fallbacks if m != primary]
 
     prompt_text = body["messages"][0]["content"]
     payload = {
@@ -60,35 +59,51 @@ def call(body):
             "maxOutputTokens": 4096,
         },
     }
+    data_bytes = json.dumps(payload).encode()
 
-    req = urllib.request.Request(
-        url,
-        data=json.dumps(payload).encode(),
-        headers={
-            "content-type": "application/json",
-            "x-goog-api-key": key,
-        },
+    last_error = None
+    for model in models:
+        url = (
+            "https://generativelanguage.googleapis.com/v1beta/models/"
+            + model
+            + ":generateContent"
+        )
+        req = urllib.request.Request(
+            url,
+            data=data_bytes,
+            headers={
+                "content-type": "application/json",
+                "x-goog-api-key": key,
+            },
+        )
+        for attempt in range(MAX_RETRIES):
+            try:
+                with urllib.request.urlopen(req, timeout=180) as r:
+                    data = json.load(r)
+                    return data["candidates"][0]["content"]["parts"][0]["text"]
+            except urllib.error.HTTPError as e:
+                body_text = e.read().decode("utf-8", errors="replace")
+                if e.code in (401, 403):
+                    raise SystemExit(
+                        "Google API rejected the key (" + str(e.code) + "). "
+                        "Regenerate GOOGLE_API_KEY. Response: " + body_text
+                    )
+                if e.code == 404:
+                    last_error = "model " + model + " not available (404)"
+                    break
+                if e.code in (429, 500, 502, 503, 504):
+                    last_error = "model " + model + " returned " + str(e.code)
+                    if attempt < MAX_RETRIES - 1:
+                        time.sleep((2 ** attempt) * 5)
+                        continue
+                    break
+                raise RuntimeError(
+                    "Google API error " + str(e.code) + ": " + body_text
+                ) from e
+    raise RuntimeError(
+        "all models exhausted; last error: " + (last_error or "unknown")
     )
-    for attempt in range(MAX_RETRIES):
-        try:
-            with urllib.request.urlopen(req, timeout=180) as r:
-                data = json.load(r)
-                return data["candidates"][0]["content"]["parts"][0]["text"]
-        except urllib.error.HTTPError as e:
-            body_text = e.read().decode("utf-8", errors="replace")
-            if e.code in (401, 403):
-                raise SystemExit(
-                    "Google API rejected the key (" + str(e.code) + "). "
-                    "Regenerate GOOGLE_API_KEY. Response: " + body_text
-                )
-            # Transient: rate limit or upstream capacity. Retry with backoff.
-            if e.code in (429, 500, 502, 503, 504) and attempt < MAX_RETRIES - 1:
-                time.sleep((2 ** attempt) * 5)
-                continue
-            raise RuntimeError(
-                "Google API error " + str(e.code) + ": " + body_text
-            ) from e
-    raise RuntimeError("retries exhausted")
+
 
 def parse(text):
     m = re.search(r"## Verdict:\s*(PASS|WARN|FAIL)", text, re.IGNORECASE)
