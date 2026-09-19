@@ -109,7 +109,7 @@ def main():
 
     persona = read(".github/ai-reviewers/" + a.persona + ".md")
     text = call({
-        "model": GEMINI_GEMINI_MODEL,
+        "model": GEMINI_MODEL,
         "max_tokens": 4096,
         "messages": [{
             "role": "user",
