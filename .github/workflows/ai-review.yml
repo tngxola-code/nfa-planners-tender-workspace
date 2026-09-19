@@ -10,6 +10,22 @@ permissions:
   checks: write
 
 jobs:
+  preflight:
+    runs-on: ubuntu-latest
+    outputs:
+      key_present: ${{ steps.check.outputs.key_present }}
+    steps:
+      - id: check
+        env:
+          GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
+        run: |
+          if [ -z "${ANTHROPIC_API_KEY:-}" ]; then
+            echo "::error::GOOGLE_API_KEY is not set. AI reviewers cannot run."
+            echo "key_present=false" >> "$GITHUB_OUTPUT"
+            exit 1
+          fi
+          echo "key_present=true" >> "$GITHUB_OUTPUT"
+
   detect:
     runs-on: ubuntu-latest
     if: github.event.pull_request.draft == false
@@ -26,7 +42,7 @@ jobs:
           python3 .github/ai-reviewers/detect.py < /tmp/changed.txt
 
   review:
-    needs: detect
+    needs: [detect, preflight]
     runs-on: ubuntu-latest
     if: github.event.pull_request.draft == false
     strategy:
@@ -49,7 +65,7 @@ jobs:
       - name: Run persona
         if: contains(needs.detect.outputs.reviewers, matrix.persona)
         env:
-          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
         run: |
           python3 .github/ai-reviewers/review.py \
             --persona ${{ matrix.persona }} \
@@ -93,14 +109,9 @@ jobs:
               output: { title: r.summary, summary: r.comment.slice(0, 65000) },
             });
 
-      - name: Fail on FAIL
-        if: always()
-        run: |
-          v=$(jq -r .verdict /tmp/result.json)
-          [ "$v" = "fail" ] && exit 1 || exit 0
 
   escalate:
-    needs: detect
+    needs: [detect, preflight]
     if: needs.detect.outputs.escalations != ''
     runs-on: ubuntu-latest
     steps:

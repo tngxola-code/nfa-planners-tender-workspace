@@ -36,27 +36,50 @@ def build_prompt(persona, diff, adrs, contract, questions):
 
 
 def call(body):
-    key = os.environ["ANTHROPIC_API_KEY"]
-    req = urllib.request.Request(
-        API,
-        data=json.dumps(body).encode(),
-        headers={
-            "x-api-key": key,
-            "anthropic-version": "2023-06-01",
-            "content-type": "application/json",
+    key = os.environ.get("GOOGLE_API_KEY", "").strip()
+    if not key:
+        raise SystemExit("SKIP: GOOGLE_API_KEY is not set")
+
+    model = os.environ.get("AI_REVIEW_MODEL", "gemini-2.0-flash")
+    url = (
+        "https://generativelanguage.googleapis.com/v1beta/models/"
+        + model + ":generateContent?key=" + key
+    )
+
+    # Translate the Anthropic body shape to Gemini's shape.
+    prompt_text = body["messages"][0]["content"]
+    payload = {
+        "contents": [{"parts": [{"text": prompt_text}]}],
+        "generationConfig": {
+            "temperature": 0.2,
+            "maxOutputTokens": 4096,
         },
+    }
+
+    req = urllib.request.Request(
+        url,
+        data=json.dumps(payload).encode(),
+        headers={"content-type": "application/json"},
     )
     for attempt in range(MAX_RETRIES):
         try:
             with urllib.request.urlopen(req, timeout=180) as r:
-                return json.load(r)["content"][0]["text"]
+                data = json.load(r)
+                return data["candidates"][0]["content"]["parts"][0]["text"]
         except urllib.error.HTTPError as e:
+            body_text = e.read().decode("utf-8", errors="replace")
+            if e.code in (401, 403):
+                raise SystemExit(
+                    "Google API rejected the key (" + str(e.code) + "). "
+                    "Regenerate GOOGLE_API_KEY. Response: " + body_text
+                )
             if e.code == 429 and attempt < MAX_RETRIES - 1:
                 time.sleep((2 ** attempt) * 5)
                 continue
-            raise
+            raise RuntimeError(
+                "Google API error " + str(e.code) + ": " + body_text
+            ) from e
     raise RuntimeError("retries exhausted")
-
 
 def parse(text):
     m = re.search(r"## Verdict:\s*(PASS|WARN|FAIL)", text, re.IGNORECASE)
