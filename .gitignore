@@ -28,3 +28,5 @@ mobile/android/.gradle/
 
 # OS
 .DS_Store
+__pycache__/
+__pycache__/

@@ -1,0 +1,67 @@
+name: AI review health
+
+on:
+  schedule:
+    - cron: "0 6 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Exercise the reviewer secret
+        env:
+          GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
+        run: |
+          if [ -z "${GOOGLE_API_KEY:-}" ]; then
+            echo "::error::GOOGLE_API_KEY is not set"
+            exit 1
+          fi
+          status=$(curl -sS -o /tmp/resp.json -w "%{http_code}" \
+            "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.7-flash:generateContent" \
+            -H "x-goog-api-key: ${GOOGLE_API_KEY}" \
+            -H "content-type: application/json" \
+            -d '{"contents":[{"parts":[{"text":"ping"}]}]}')
+          echo "status: ${status}"
+          if [ "${status}" != "200" ]; then
+            echo "::error::Google API returned ${status}"
+            cat /tmp/resp.json || true
+            exit 1
+          fi
+          echo "key is healthy"
+
+      - name: Open an issue if the key is unhealthy
+        if: failure()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const title = "AI reviewer: GOOGLE_API_KEY is unhealthy";
+            const { data: existing } = await github.rest.issues.listForRepo({
+              owner: context.repo.owner, repo: context.repo.repo,
+              state: "open", labels: "ai-reviewer",
+            });
+            if (existing.some(i => i.title === title)) {
+              console.log("issue already open");
+              return;
+            }
+            await github.rest.issues.create({
+              owner: context.repo.owner, repo: context.repo.repo,
+              title,
+              labels: ["ai-reviewer", "ops"],
+              body: [
+                "The daily reviewer health check failed.",
+                "",
+                "The AI reviewer workflows will fail on every PR until this is fixed.",
+                "",
+                "## What to do",
+                "1. Verify the key in the Google AI Studio console.",
+                "2. Update the repository secret `GOOGLE_API_KEY`.",
+                "3. Re-run the health workflow to confirm.",
+                "",
+                "See `docs/runbook.md` for the rotation procedure.",
+              ].join("\n"),
+            });

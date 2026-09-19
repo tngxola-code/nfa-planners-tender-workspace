@@ -1,0 +1,7 @@
+creation_rules:
+  - path_regex: deploy/secrets/uat\.enc\.yaml$
+    age: age1REPLACE_WITH_UAT_RECIPIENT
+  - path_regex: deploy/secrets/prod\.enc\.yaml$
+    age: >-
+      age1REPLACE_WITH_PROD_RECIPIENT,
+      age1REPLACE_WITH_INFORMATION_OFFICER_RECIPIENT
