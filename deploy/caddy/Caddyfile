@@ -1,37 +1,55 @@
-# Local development Caddyfile.
+# Caddy front door for the NFA planners tender workspace.
 #
-# Caddy terminates TLS with its internal CA and routes:
-#   /realms/*            -> Keycloak
-#   /v1/* /healthz /docs -> Go API
-#   everything else       -> a 404 until the console is wired in
-#
-# Local only. The production Caddyfile lives in deploy/caddy/Caddyfile.prod.
+# Terminates TLS for the public hostname, requires a client certificate
+# from a bundled CA, and forwards the verified cert's identity to the
+# backend as headers. The backend MUST NOT be reachable from anywhere
+# except Caddy: bind it to loopback, and rely on the identity middleware's
+# TrustedProxies check as a second line of defense.
 
 {
-    local_certs
-    auto_https disable_redirects
-    admin off
+	admin off
 }
 
-localhost:8443 {
-    tls internal
+nfa.example.com {
+	tls {
+		client_auth {
+			# require_and_verify aborts the handshake when the client
+			# presents no certificate or one that does not chain to the
+			# trust pool. The `request` mode would let unverified certs
+			# through, and the backend would have no way to distinguish
+			# them from verified ones.
+			mode require_and_verify
+			trust_pool file /etc/caddy/client-ca.pem
+		}
+	}
 
-    @sso path /realms/* /resources/* /realms
-    handle @sso {
-        reverse_proxy keycloak:8080
-    }
+	# Matcher fires when the handshake carried a verified client cert.
+	@withClientCert expression {http.request.tls.client.subject} != ""
 
-    @api path /v1/* /healthz /openapi.json /docs
-    handle @api {
-        reverse_proxy host.docker.internal:8000
-    }
+	# Always strip any inbound X-Client-Cert-* so a hostile client cannot
+	# smuggle values through. Caddy renders each placeholder into its own
+	# header, but stripping first costs nothing and closes the door if a
+	# future Caddy version changes placeholder behavior.
+	handle @withClientCert {
+		reverse_proxy 127.0.0.1:8080 {
+			header_up -X-Client-Cert-Subject
+			header_up -X-Client-Cert-Issuer
+			header_up -X-Client-Cert-Serial
+			header_up -X-Client-Cert-Fingerprint
 
-    handle {
-        respond "Not found" 404
-    }
+			header_up X-Client-Cert-Subject     {http.request.tls.client.subject}
+			header_up X-Client-Cert-Issuer      {http.request.tls.client.issuer}
+			header_up X-Client-Cert-Serial      {http.request.tls.client.serial}
+			header_up X-Client-Cert-Fingerprint {http.request.tls.client.fingerprint}
+		}
+	}
 
-    log {
-        output stdout
-        format console
-    }
+	handle {
+		reverse_proxy 127.0.0.1:8080 {
+			header_up -X-Client-Cert-Subject
+			header_up -X-Client-Cert-Issuer
+			header_up -X-Client-Cert-Serial
+			header_up -X-Client-Cert-Fingerprint
+		}
+	}
 }
