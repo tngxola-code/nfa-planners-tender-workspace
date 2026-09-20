@@ -85,7 +85,7 @@ func ping(scope string) func(http.ResponseWriter, *http.Request) {
 	}
 }
 
-func writeJSON(w http.ResponseWriter, r *http.Request, status int, body any) {
+func writeJSON(w http.ResponseWriter, _ *http.Request, status int, body any) {
 	w.Header().Set("Content-Type", "application/json")
 	w.Header().Set("Cache-Control", "no-store")
 	w.WriteHeader(status)
