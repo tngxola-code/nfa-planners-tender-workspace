@@ -10,7 +10,7 @@ import (
 
 func okHandler(t *testing.T, ran *bool) http.Handler {
 	t.Helper()
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	return http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		*ran = true
 		w.WriteHeader(http.StatusOK)
 	})

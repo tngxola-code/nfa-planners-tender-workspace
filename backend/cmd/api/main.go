@@ -1,12 +1,12 @@
 package main
 
 import (
-	"encoding/json"
 	"errors"
 	"log"
 	"net/http"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/tngxola-code/nfa-planners-tender-workspace/backend/internal/auth"
 	"github.com/tngxola-code/nfa-planners-tender-workspace/backend/internal/diagnostics"
@@ -61,8 +61,20 @@ func main() {
 
 	handler := idMW(rootMux)
 
+	// Timeouts are set explicitly: http.ListenAndServe leaves them at zero,
+	// so a client that opens a connection and sends nothing holds it open
+	// forever. ReadHeaderTimeout is the one that bounds that.
+	srv := &http.Server{
+		Addr:              addr,
+		Handler:           handler,
+		ReadHeaderTimeout: 10 * time.Second,
+		ReadTimeout:       30 * time.Second,
+		WriteTimeout:      60 * time.Second,
+		IdleTimeout:       120 * time.Second,
+	}
+
 	log.Printf("listening on %s (oidc %s)", addr, oidcStatus())
-	if err := http.ListenAndServe(addr, handler); err != nil && !errors.Is(err, http.ErrServerClosed) {
+	if err := srv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 		log.Fatal(err)
 	}
 }
@@ -130,24 +142,6 @@ func handleHealthz(w http.ResponseWriter, _ *http.Request) {
 	_, _ = w.Write([]byte("ok"))
 }
 
-func handleWhoami(w http.ResponseWriter, r *http.Request) {
-	id, _ := identity.FromContext(r.Context())
-	claims, _ := auth.FromContext(r.Context())
-	w.Header().Set("Content-Type", "application/json")
-	_ = json.NewEncoder(w).Encode(map[string]any{
-		"identity": map[string]any{
-			"source":      string(id.Source),
-			"subject":     id.Subject,
-			"common_name": id.CommonName,
-			"org":         id.Org,
-		},
-		"oidc": map[string]any{
-			"subject":  claimSubject(claims),
-			"username": claimUsername(claims),
-		},
-	})
-}
-
 func splitComma(s string) []string {
 	var out []string
 	for _, p := range strings.Split(s, ",") {
@@ -156,18 +150,4 @@ func splitComma(s string) []string {
 		}
 	}
 	return out
-}
-
-func claimSubject(c *auth.Claims) string {
-	if c == nil {
-		return ""
-	}
-	return c.Subject
-}
-
-func claimUsername(c *auth.Claims) string {
-	if c == nil {
-		return ""
-	}
-	return c.Username
 }

@@ -29,7 +29,7 @@ func doRequest(t *testing.T, mw func(http.Handler) http.Handler,
 	remote string, hdrs map[string][]string) Identity {
 	t.Helper()
 	var captured Identity
-	h := mw(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	h := mw(http.HandlerFunc(func(_ http.ResponseWriter, r *http.Request) {
 		id, ok := FromContext(r.Context())
 		if !ok {
 			t.Fatal("FromContext returned no identity; middleware must always attach one")
@@ -159,5 +159,30 @@ func TestParseCIDRs(t *testing.T) {
 				t.Errorf("ParseCIDRs(%q) err = %v, wantErr = %v", tc.in, err, tc.wantErr)
 			}
 		})
+	}
+}
+
+// In production the trusted proxy is Caddy on a container network, not
+// loopback. This exercises the rejection path with a realistic range: a
+// peer inside 10.0.0.0/8 is trusted, and loopback — which is trusted
+// everywhere else in this suite — is not.
+func TestMiddleware_TrustsOnlyTheConfiguredRange(t *testing.T) {
+	mw := newMW(t, "10.0.0.0/8")
+	hdrs := map[string][]string{
+		HeaderSubject: {"CN=worker,O=NFA"},
+	}
+
+	trusted := doRequest(t, mw, "10.1.2.3:44321", hdrs)
+	if trusted.Subject != "CN=worker,O=NFA" {
+		t.Errorf("peer inside the trusted range: subject = %q, want the forwarded DN",
+			trusted.Subject)
+	}
+
+	// Loopback is outside 10.0.0.0/8 here. Its headers must be ignored,
+	// or any process on the host could assert an identity.
+	untrusted := doRequest(t, mw, "127.0.0.1:44321", hdrs)
+	if untrusted.Subject != "" {
+		t.Errorf("peer outside the trusted range asserted an identity: %q",
+			untrusted.Subject)
 	}
 }

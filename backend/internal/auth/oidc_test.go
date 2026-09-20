@@ -38,7 +38,7 @@ func newFixture(t *testing.T) *fixture {
 
 	mux := http.NewServeMux()
 	mux.HandleFunc(testRealmPath+"/protocol/openid-connect/certs",
-		func(w http.ResponseWriter, r *http.Request) {
+		func(w http.ResponseWriter, _ *http.Request) {
 			w.Header().Set("Content-Type", "application/json")
 			_ = json.NewEncoder(w).Encode(map[string]any{
 				"keys": []map[string]any{{
@@ -187,13 +187,13 @@ func TestVerifyRejects(t *testing.T) {
 		},
 		{
 			name: "hs256_confusion",
-			tok: func(t *testing.T, f *fixture) string {
+			tok: func(_ *testing.T, f *fixture) string {
 				return signHS256(t, hmacKey, f.baseClaims())
 			},
 		},
 		{
 			name: "alg_none",
-			tok: func(t *testing.T, f *fixture) string {
+			tok: func(_ *testing.T, f *fixture) string {
 				// Hand-built alg=none token: header.payload. (trailing dot,
 				// empty signature).
 				body := base64.RawURLEncoding.EncodeToString(
