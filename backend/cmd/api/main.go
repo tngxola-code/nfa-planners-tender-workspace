@@ -47,9 +47,14 @@ func main() {
 	// verifier rejects unauthenticated requests before they reach a
 	// handler. Whether an mTLS identity alone is sufficient is decided by
 	// subsequent authorization (feat/auth-scope).
-	apiMux := http.NewServeMux()
-	apiMux.HandleFunc("/v1/whoami", handleWhoami)
-	rootMux.Handle("/v1/", oidcMW(apiMux))
+	// Every route is registered through ScopedMux, which refuses a pattern
+	// with no recorded scope decision. An unprotected route is therefore a
+	// startup failure, not something a reviewer has to notice.
+	apiMux := httpx.NewScopedMux(oidcMW)
+	if err := apiMux.Handle("GET /v1/whoami", http.HandlerFunc(handleWhoami)); err != nil {
+		log.Fatal(err)
+	}
+	rootMux.Handle("/v1/", apiMux)
 
 	handler := idMW(rootMux)
 
@@ -74,12 +79,14 @@ func buildIdentityMiddleware() (func(http.Handler) http.Handler, error) {
 	})
 }
 
-// buildOIDCMiddleware returns the OIDC authenticator when OIDC_ISSUER is
-// set, or a no-op passthrough otherwise.
+// buildOIDCMiddleware returns the OIDC authenticator. OIDC_ISSUER is
+// required: there is no unauthenticated mode.
 func buildOIDCMiddleware() (func(http.Handler) http.Handler, error) {
 	issuer := os.Getenv("OIDC_ISSUER")
 	if issuer == "" {
-		return func(next http.Handler) http.Handler { return next }, nil
+		// Fail closed. A passthrough here would serve every /v1/ route
+		// unauthenticated, and the absence of a variable is not consent.
+		return nil, errors.New("OIDC_ISSUER must be set; refusing to serve unauthenticated")
 	}
 	azp := os.Getenv("OIDC_ALLOWED_AZP")
 	if azp == "" {
