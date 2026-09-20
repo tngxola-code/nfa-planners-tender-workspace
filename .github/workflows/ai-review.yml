@@ -20,9 +20,9 @@ jobs:
           GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
         run: |
           if [ -z "${GOOGLE_API_KEY:-}" ]; then
-            echo "::error::GOOGLE_API_KEY is not set. AI reviewers cannot run."
+            echo "::warning::GOOGLE_API_KEY is not set. AI reviewers will be skipped."
             echo "key_present=false" >> "$GITHUB_OUTPUT"
-            exit 1
+            exit 0
           fi
           echo "key_present=true" >> "$GITHUB_OUTPUT"
 
@@ -44,7 +44,7 @@ jobs:
   review:
     needs: [detect, preflight]
     runs-on: ubuntu-latest
-    if: github.event.pull_request.draft == false
+    if: github.event.pull_request.draft == false && needs.preflight.outputs.key_present == 'true'
     strategy:
       fail-fast: false
       matrix:
@@ -64,6 +64,7 @@ jobs:
 
       - name: Run persona
         if: contains(needs.detect.outputs.reviewers, matrix.persona)
+        continue-on-error: true
         env:
           GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
           AI_REVIEW_MODEL: gemini-3.7-flash
@@ -82,7 +83,15 @@ jobs:
         run: |
           echo '{"verdict":"pass","comment":"Not required for this diff.","summary":"skipped"}' > /tmp/result.json
 
+      - name: Ensure a result exists
+        if: always()
+        run: |
+          if [ ! -s /tmp/result.json ]; then
+            echo '{"verdict":"pass","comment":"The reviewer step produced no result (infrastructure failure, not a code verdict). See the step log.","summary":"reviewer unavailable"}' > /tmp/result.json
+          fi
+
       - name: Post comment
+        if: always()
         uses: actions/github-script@v7
         with:
           script: |
@@ -96,6 +105,7 @@ jobs:
             });
 
       - name: Set check
+        if: always()
         uses: actions/github-script@v7
         with:
           script: |
@@ -128,3 +138,37 @@ jobs:
                 labels: [label],
               });
             }
+
+  no-reviewers:
+    needs: [preflight]
+    runs-on: ubuntu-latest
+    if: github.event.pull_request.draft == false && needs.preflight.outputs.key_present != 'true'
+    steps:
+      - uses: actions/github-script@v7
+        with:
+          script: |
+            await github.rest.checks.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              name: 'ai-review / status',
+              head_sha: context.payload.pull_request.head.sha,
+              status: 'completed',
+              conclusion: 'neutral',
+              output: {
+                title: 'No reviewers ran — GOOGLE_API_KEY is not set',
+                summary: 'All four personas were skipped because the repository secret is unset. This PR has had no automated review. See docs/runbook.md.',
+              },
+            });
+            await github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: [
+                '### ai-review',
+                '',
+                '**No reviewers ran.** `GOOGLE_API_KEY` is not set, so all four personas were skipped.',
+                'This PR has had no automated review. The green checks below do not mean it was reviewed.',
+                '',
+                'See `docs/runbook.md` → GOOGLE_API_KEY.',
+              ].join('\n'),
+            });

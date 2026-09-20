@@ -24,7 +24,10 @@ with a 401.
 
 ### How to rotate
 
-1. Create a new API key in Google AI Studio.
+1. Create a new API key in Google AI Studio. It must be a long-lived
+   `AIzaSy...` key, 39 characters. An `AQ.`-prefixed value is a short-lived
+   session token: it passes a manual `curl` and then expires in CI, which
+   presents as an intermittent 401 with no code change to explain it.
 2. Revoke the old key.
 3. Update `GOOGLE_API_KEY` in repo settings.
 4. Run the health workflow manually to confirm.
