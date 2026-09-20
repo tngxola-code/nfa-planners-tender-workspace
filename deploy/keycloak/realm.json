@@ -437,6 +437,14 @@
       "realmRoles": [
         "information_officer"
       ]
+    },
+    {
+      "username": "service-account-nfa-service",
+      "enabled": true,
+      "serviceAccountClientId": "nfa-service",
+      "realmRoles": [
+        "service_ingest"
+      ]
     }
   ],
   "scopeMappings": [

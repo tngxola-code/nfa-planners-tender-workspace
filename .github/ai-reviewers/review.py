@@ -145,9 +145,9 @@ def main():
             }],
         })
         verdict, escalations, comment = parse(text)
-    except RuntimeError as e:
+    except (RuntimeError, SystemExit) as e:
         # Upstream provider unavailable. Report and pass, do not block.
-        unavailable = str(e)
+        unavailable = str(getattr(e, "code", None) or e)
         verdict = "pass"
         escalations = []
         comment = (

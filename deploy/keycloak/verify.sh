@@ -130,6 +130,12 @@ if [ -z "$SERVICE_TOKEN" ]; then
   fail "service client: could not issue token"
 else
   ok "service client: token issued"
+  SERVICE_SCOPES="$(decode_scopes "$SERVICE_TOKEN")"
+  if echo " $SERVICE_SCOPES " | grep -q " ingest:read "; then
+    ok "service client: granted ingest:read"
+  else
+    fail "service client: did not grant ingest:read (got: ${SERVICE_SCOPES})"
+  fi
 fi
 
 echo
