@@ -30,3 +30,19 @@ mobile/android/.gradle/
 .DS_Store
 __pycache__/
 __pycache__/
+
+# Go build outputs
+/backend/bin/
+/backend/api
+/backend/worker
+/backend/migrate
+*.test
+*.out
+
+# Go build outputs
+/backend/bin/
+/backend/api
+/backend/worker
+/backend/migrate
+*.test
+*.out

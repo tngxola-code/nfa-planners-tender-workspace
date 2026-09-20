@@ -89,9 +89,14 @@ type Verifier struct {
 	httpClient *http.Client
 	jwksURL    string
 
-	probeMu sync.Mutex
-	probeOK bool
-	probeAt time.Time
+	// probeMu guards every field below. It is NEVER held across network
+	// I/O: probeJWKS does single-flight coordination so concurrent callers
+	// share one in-flight probe rather than serializing on a lock.
+	probeMu   sync.Mutex
+	probeOK   bool
+	probeAt   time.Time
+	probing   bool
+	probeDone chan struct{}
 }
 
 // NewVerifier builds a Verifier. No network I/O at construction: the
@@ -163,39 +168,81 @@ func checkSupportedAlg(raw string) error {
 	}
 }
 
-// probeJWKS reports whether the JWKS endpoint is reachable right now. Both
-// outcomes are cached briefly so a burst of bad tokens does not become a
-// burst of JWKS probes.
+// probeJWKS reports whether the JWKS endpoint is reachable right now.
+//
+// Concurrency: callers either observe a recent cached result, wait on a
+// single in-flight probe, or become the prober themselves. The network
+// request happens outside probeMu, so no goroutine is ever blocked on
+// another goroutine's HTTP I/O.
 func (v *Verifier) probeJWKS(ctx context.Context) error {
 	v.probeMu.Lock()
-	defer v.probeMu.Unlock()
 
+	// Fast path: recent result still fresh.
 	if !v.probeAt.IsZero() && time.Since(v.probeAt) < jwksProbeTTL {
-		if v.probeOK {
+		ok := v.probeOK
+		v.probeMu.Unlock()
+		if ok {
 			return nil
 		}
 		return errors.New("jwks recently observed unreachable")
 	}
 
+	// Someone else is probing: wait for their result without holding the
+	// lock, and without racing the context.
+	if v.probing {
+		done := v.probeDone
+		v.probeMu.Unlock()
+		select {
+		case <-done:
+			v.probeMu.Lock()
+			ok := v.probeOK
+			v.probeMu.Unlock()
+			if ok {
+				return nil
+			}
+			return errors.New("jwks observed unreachable")
+		case <-ctx.Done():
+			return ctx.Err()
+		}
+	}
+
+	// We are the prober. Publish a channel for waiters, drop the lock,
+	// then do the HTTP request.
+	v.probing = true
+	done := make(chan struct{})
+	v.probeDone = done
+	v.probeMu.Unlock()
+
+	err := v.doProbe(ctx)
+
+	v.probeMu.Lock()
+	v.probeOK = err == nil
+	v.probeAt = time.Now()
+	v.probing = false
+	close(done)
+	v.probeMu.Unlock()
+
+	return err
+}
+
+// doProbe performs the actual HTTP GET. It must be called without probeMu
+// held.
+func (v *Verifier) doProbe(ctx context.Context) error {
 	reqCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
 
 	req, err := http.NewRequestWithContext(reqCtx, http.MethodGet, v.jwksURL, nil)
 	if err != nil {
-		v.probeOK, v.probeAt = false, time.Now()
 		return err
 	}
 	resp, err := v.httpClient.Do(req)
 	if err != nil {
-		v.probeOK, v.probeAt = false, time.Now()
 		return err
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
-		v.probeOK, v.probeAt = false, time.Now()
 		return fmt.Errorf("jwks returned status %d", resp.StatusCode)
 	}
-	v.probeOK, v.probeAt = true, time.Now()
 	return nil
 }
 
