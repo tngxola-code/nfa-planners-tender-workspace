@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/tngxola-code/nfa-planners-tender-workspace/backend/internal/auth"
+	"github.com/tngxola-code/nfa-planners-tender-workspace/backend/internal/diagnostics"
 	"github.com/tngxola-code/nfa-planners-tender-workspace/backend/internal/httpx"
 	"github.com/tngxola-code/nfa-planners-tender-workspace/backend/internal/identity"
 )
@@ -51,8 +52,10 @@ func main() {
 	// with no recorded scope decision. An unprotected route is therefore a
 	// startup failure, not something a reviewer has to notice.
 	apiMux := httpx.NewScopedMux(oidcMW)
-	if err := apiMux.Handle("GET /v1/whoami", http.HandlerFunc(handleWhoami)); err != nil {
-		log.Fatal(err)
+	for pattern, h := range diagnostics.Routes() {
+		if err := apiMux.Handle(pattern, h); err != nil {
+			log.Fatal(err)
+		}
 	}
 	rootMux.Handle("/v1/", apiMux)
 
@@ -92,10 +95,22 @@ func buildOIDCMiddleware() (func(http.Handler) http.Handler, error) {
 	if azp == "" {
 		return nil, errors.New("OIDC_ALLOWED_AZP must be set when OIDC_ISSUER is set")
 	}
+	allowed := splitComma(azp)
+
+	// Test clients are admitted separately and announced. nfa-test enables
+	// the ROPC grant so a script can mint a user token without a browser;
+	// it must never be accepted by a deployed instance. Keeping it out of
+	// OIDC_ALLOWED_AZP means a deployment cannot admit it by inheriting a
+	// local value, and the log line below makes an accidental one visible.
+	if testClients := os.Getenv("OIDC_ALLOWED_AZP_TEST_CLIENTS"); testClients != "" {
+		extra := splitComma(testClients)
+		log.Printf("WARNING: admitting test client(s) %v — this must not be set outside local development", extra)
+		allowed = append(allowed, extra...)
+	}
 	v, err := auth.NewVerifier(auth.Config{
 		IssuerURL:  issuer,
 		JWKSURL:    os.Getenv("OIDC_JWKS_URL"),
-		AllowedAZP: splitComma(azp),
+		AllowedAZP: allowed,
 	})
 	if err != nil {
 		return nil, err
