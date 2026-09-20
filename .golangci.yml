@@ -1,34 +1,70 @@
+version: "2"
 run:
-  timeout: 4m
   tests: true
-
 linters:
-  disable-all: true
+  default: none
   enable:
-    - errcheck
-    - govet
-    - ineffassign
-    - staticcheck
-    - unused
-    - gofmt
-    - goimports
-    - revive
-    - gosec
-    - gocritic
     - bodyclose
     - contextcheck
+    - errcheck
     - errorlint
+    - gocritic
+    - gosec
+    - govet
+    - ineffassign
     - nilerr
     - noctx
+    - revive
     - rowserrcheck
     - sqlclosecheck
+    - staticcheck
     - unconvert
     - unparam
+    - unused
     - whitespace
-
-issues:
-  exclude-rules:
-    - path: "_test\.go"
-      linters: [gosec, errcheck]
-    - path: "cmd/"
-      linters: [revive]
+  exclusions:
+    generated: lax
+    presets:
+      - comments
+      - common-false-positives
+      - legacy
+      - std-error-handling
+    rules:
+      - linters:
+          - errcheck
+          - gosec
+        path: _test\.go
+      - linters:
+          - revive
+        path: cmd/
+      # go-oidc's verification errors are not part of our API. Wrapping
+      # them with %w would let callers errors.Is into a dependency's
+      # internals; the sentinel (ErrUnauthenticated, ErrUnavailable) is
+      # already wrapped, and that is what callers match on.
+      - linters:
+          - errorlint
+        path: internal/auth/oidc\.go
+      # httptest.NewRequest carries context.Background(), which is correct
+      # for a handler unit test: there is no parent request to inherit from.
+      - linters:
+          - noctx
+        path: _test\.go
+      # oidcStatus() returns one of two constants; there is no taint.
+      - linters:
+          - gosec
+        path: cmd/api/main\.go
+        text: G706
+    paths:
+      - third_party$
+      - builtin$
+      - examples$
+formatters:
+  enable:
+    - gofmt
+    - goimports
+  exclusions:
+    generated: lax
+    paths:
+      - third_party$
+      - builtin$
+      - examples$
