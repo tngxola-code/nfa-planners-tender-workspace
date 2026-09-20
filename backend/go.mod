@@ -1,6 +1,6 @@
 module github.com/tngxola-code/nfa-planners-tender-workspace/backend
 
-go 1.27.1
+go 1.25.0
 
 require (
 	github.com/coreos/go-oidc/v3 v3.21.0
