@@ -149,11 +149,11 @@ keycloak-reset:  ## Drop the Keycloak database and re-import the realm
 		-c "DROP DATABASE IF EXISTS keycloak WITH (FORCE);" >/dev/null
 	@docker compose exec -T postgres psql -U nfa -d postgres \
 		-c "CREATE DATABASE keycloak OWNER nfa;" >/dev/null
-	@echo "restarting keycloak..."
-	docker compose restart keycloak
+	@echo "recreating keycloak..."
+	docker compose up -d --force-recreate keycloak
 	@echo "waiting for realm to load..."
-	@until curl -sf http://localhost:8081/realms/nfa/.well-known/openid-configuration >/dev/null 2>&1; do sleep 2; done
-	@echo "realm loaded"
+	@until curl -sf http://localhost:8081/realms/nfa/.well-known/openid-configuration >/dev/null; do \
+		printf "."; sleep 2; done; echo " ready"
 
 keycloak-verify:  ## Verify the realm is loaded and scopes behave
 	./deploy/keycloak/verify.sh
